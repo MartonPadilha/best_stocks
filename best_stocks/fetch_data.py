@@ -1,8 +1,9 @@
 import yfinance as yf
 import pandas as pd
-from best_stocks.database import Database
-from best_stocks.config import Config
+from database import Database
+from config import Config
 import ast
+import numpy as np
 
 LIST_PATH = 'list_stocks.txt'
 db = Database(Config.DATABASE['name'], Config.DATABASE['table'])
@@ -19,20 +20,20 @@ def get_stock_data(_list):
     error = []
     
     for code in _list:
-        print(code)
         try:
             info = yf.Ticker(code + '.SA').info
             dados.append({
                 'ticker': code,
                 'sector': info.get('sector', ''),
-                'p_l': info.get('forwardPE', 0) or 0,
-                'p_vp': info.get('priceToBook', 0) or 0,
-                'dividend_yield': (info.get('dividendYield', 0) or 0) * 100,
-                'crescimento_lucro': (info.get('earningsGrowth', 0) or 0) * 100,
-                'roe': (info.get('returnOnEquity', 0) or 0) * 100,
-                'payout_ratio': info.get("payoutRatio") or 0,
+                'p_l': info.get('forwardPE', np.nan),
+                'p_vp': info.get('priceToBook', np.nan),
+                'dividend_yield': (info.get('dividendYield', np.nan)) * 100,
+                'crescimento_lucro': (info.get('earningsGrowth', np.nan)) * 100,
+                'roe': (info.get('returnOnEquity', np.nan)) * 100,
+                'payout_ratio': info.get("payoutRatio", np.nan),
             })
         except Exception as e:
+            print(code)
             error.append(code[:4])
             print(f"Erro ao buscar {code}: {e}")
 

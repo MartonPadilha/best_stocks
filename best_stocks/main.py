@@ -1,14 +1,14 @@
 
 import pandas as pd
 import numpy as np
-from best_stocks.fetch_data import main as api_data_main
-from best_stocks.config import Config
-from best_stocks.analysis import Calcs
+from fetch_data import main as api_data_main
+from config import Config
+from analysis import Calcs
 import time
 
 pd.options.mode.chained_assignment = None
 
-GOAL = 'stock'
+GOAL = 'fii'
 calcs = Calcs(GOAL)
 
 df_base = api_data_main()
@@ -22,7 +22,7 @@ if GOAL == 'fii':
 
 df_base = df_base[df_base['number_code'].isin(type_filter)]
 
-df = calcs.outliers_iqr(df_base, 1.5)
+df = calcs.outliers_iqr(df_base, 1.7)
 
 df_sectorized = calcs.sector_analyses(df)
 df_general = calcs.general_analyses(df)
@@ -32,11 +32,8 @@ df_final = calcs.final_sum_score(df_sectorized, df_general)
 df_final = df_final.sort_values(by=['score_final'], ascending=False)
 
 df_final = pd.merge(df_final, df_base, on='ticker', how='inner')
-# print(df_base[df_base['ticker'] == 'STBP3'])
-# print(df_final)
-print('df_base', df_base[df_base['ticker'] == 'PINE3'])
-print('df_sectorized', df_sectorized[df_sectorized['ticker'] == 'PINE3'])
-# print(df_general[df_general['ticker'] == 'PINE3'])
-print('df_general', df_general[df_general['ticker'] == 'PINE3'])
+
+print(df_final[df_final['ticker'].isin(['CSED3', 'DIRR3'])])
+print(df_final)
 
 # df_sectorized.to_csv(f'output/{GOAL}_{time.time()}.csv', sep=';', encoding='utf-8', index=False, decimal=",")

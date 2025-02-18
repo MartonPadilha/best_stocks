@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from .config import Config
+from config import Config
 import logging
 import matplotlib.pyplot as plt
 from scipy.stats import zscore
@@ -57,11 +57,10 @@ class Calcs():
 
             #aqui inverto a escala para indicadores "menor melhor"
             if col in ['p_l', 'p_vp']:
-                print(_min, _max, col)
-                df.loc[df[col] <= 0, col] = np.nan 
                 df.loc[:, col] = 1 - df[col]
                 
-            # df[col].fillna(0, inplace=True)
+            #aqui resolvo os NaN
+            df[col].fillna(0, inplace=True)
             
         return df
 
