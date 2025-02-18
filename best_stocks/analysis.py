@@ -61,7 +61,7 @@ class Calcs():
                 df.loc[df[col] <= 0, col] = np.nan 
                 df.loc[:, col] = 1 - df[col]
                 
-            # df[col].fillna(0, inplace=True)
+            df[col].fillna(0, inplace=True)
             
         return df
 
