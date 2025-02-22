@@ -4,6 +4,7 @@ from config import Config
 import logging
 import matplotlib.pyplot as plt
 from scipy.stats import zscore
+import time
 
 
 class Calcs():
@@ -25,18 +26,12 @@ class Calcs():
             
             lower_limit = first_quartil - factor * iqr
             upper_limit = third_quartil + factor * iqr
+            print(f'{metric_col}: {lower_limit} - {upper_limit}')
             
-            df.loc[(df[metric_col] < lower_limit) | (df[metric_col] > upper_limit), 'outlier'] = True 
+            df.loc[(df[metric_col] < lower_limit) | (df[metric_col] > upper_limit), 'outlier'] = True
             
-            # print(f"""
-            #       Outlier: {metric_col}
-            #       Lower Limit: {lower_limit}
-            #       Upper Limit: {upper_limit}
-            #       First Quartil: {first_quartil}
-            #       Third Quartil: {third_quartil}
-            #       IQR: {iqr}
-            #       """)
-            # print(30*'=')
+        df[df['outlier'] == True].to_csv(f'output/outliers.csv', sep=';', encoding='utf-8', index=False, decimal=",") 
+            
             
         return df[df['outlier'] == False]
     
@@ -52,15 +47,22 @@ class Calcs():
     def normalize(self, df, colunas):
 
         for col in colunas:
+            
+            if col in ['p_vp']:
+                df.loc[:, col] = abs(df[col] - 1)
+            if col in ['p_l']:
+                df.loc[df[col] <= 0, col] = np.nan
+                
             _min, _max = df[col].min(), df[col].max()
-            df.loc[:, col] = (df[col] - _min) / (_max - _min)
 
-            #aqui inverto a escala para indicadores "menor melhor"
-            if col in ['p_l', 'p_vp']:
+            df.loc[:, col] = (df[col] - _min) / (_max - _min)
+                
+            # aqui inverto a escala para indicadores "menor melhor"
+            if col in ['p_l', 'p_vp', 'div_liq_ebitda', 'passivos_ativos']:
                 df.loc[:, col] = 1 - df[col]
                 
             #aqui resolvo os NaN
-            df[col].fillna(0, inplace=True)
+            df[col] = df[col].fillna(0)
             
         return df
 
@@ -87,6 +89,7 @@ class Calcs():
 
     
     def sector_analyses(self, df):
+        print(20*'=', 'SECTOR', 20*'=')
         df_sectorized = pd.DataFrame(columns=df.columns)
         for sector in df['sector'].unique():
             df_sector = df[df['sector'] == sector]
@@ -97,7 +100,7 @@ class Calcs():
         return df_sectorized
             
     def general_analyses(self, df):
-        # print('general_analyses', df[df['ticker'] == 'PINE3'])
+        print(20*'=', 'GENERAL', 20*'=')
         df_normalized = self.normalize(df, [i for i in self.goal.keys()])
         df_normalized['score_general'] = df.apply(self.sum_score, axis=1)
 

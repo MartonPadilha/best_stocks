@@ -4,11 +4,11 @@ class Config:
     FII_SUFIX = [11]
     
     WEIGHTS_STOCKS =  {
-        'p_l': 0.15, 
-        'p_vp': 0.15, 
-        'dividend_yield': 0.25, 
-        'crescimento_lucro': 0.25, 
-        'roe': 0.2
+        'p_l': 0.20, 
+        'p_vp': 0.20, 
+        'dividend_yield': 0.20, 
+        'crescimento_lucro': 0.15, 
+        'roe': 0.25
     }
     
     WEIGHTS_FIIS =  {
