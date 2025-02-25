@@ -9,10 +9,12 @@ import time
 
 class Calcs():
     def __init__(self, goal):
-        if goal == 'stock':
-            self.goal = Config.WEIGHTS_STOCKS
-        elif goal == 'fii':
-            self.goal = Config.WEIGHTS_FIIS
+        # if goal == 'stock':
+        #     self.goal = Config.WEIGHTS_STOCKS
+        # elif goal == 'fii':
+        #     self.goal = Config.WEIGHTS_FIIS
+            
+        self.goal = goal
         
     def outliers_iqr(self, df, factor=1.5):
         df['outlier'] = False
@@ -41,26 +43,35 @@ class Calcs():
         for metric_col in [i for i in self.goal.keys()]:
             
             df.loc[np.abs(zscore(df[metric_col].dropna())) > factor, 'outlier'] = True
+            
+        df[df['outlier'] == True].to_csv(f'output/outliers.csv', sep=';', encoding='utf-8', index=False, decimal=",") 
 
         return df[df['outlier'] == False]
 
     def normalize(self, df, colunas):
-
+        
         for col in colunas:
-            
-            if col in ['p_vp']:
-                df.loc[:, col] = abs(df[col] - 1)
-            if col in ['p_l']:
-                df.loc[df[col] <= 0, col] = np.nan
-                
-            _min, _max = df[col].min(), df[col].max()
-
-            df.loc[:, col] = (df[col] - _min) / (_max - _min)
-                
-            # aqui inverto a escala para indicadores "menor melhor"
-            if col in ['p_l', 'p_vp', 'div_liq_ebitda', 'passivos_ativos']:
+            if self.goal[col]['normalization'] == 'inverter':
+                _min, _max = df[col].min(), df[col].max()
+                df.loc[:, col] = (df[col] - _min) / (_max - _min)
                 df.loc[:, col] = 1 - df[col]
                 
+            elif self.goal[col]['normalization'] == 'inverter_zero':
+                df[col] = np.log1p(df[col]) # escolhi usar escala logaritmica para suavizar a alta amplitude dos dados
+                _min, _max = df[col].min(), df[col].max()
+                df.loc[df[col] <= 0, col] = np.nan
+                df.loc[:, col] = (df[col] - _min) / (_max - _min)
+                df.loc[:, col] = 1 - df[col]
+                
+            elif self.goal[col]['normalization'] == 'inverter_one':
+                df.loc[:, col] = abs(df[col] - 1)
+                _min, _max = df[col].min(), df[col].max()
+                df.loc[:, col] = (df[col] - _min) / (_max - _min)
+                df.loc[:, col] = 1 - df[col]
+            else:
+                _min, _max = df[col].min(), df[col].max()
+                df.loc[:, col] = (df[col] - _min) / (_max - _min)
+                                   
             #aqui resolvo os NaN
             df[col] = df[col].fillna(0)
             
@@ -71,7 +82,7 @@ class Calcs():
         score = 0
         
         for crit, peso in self.goal.items():
-            score += df[crit] * peso
+            score += df[crit] * peso['weight']
 
         return score
 
@@ -93,7 +104,7 @@ class Calcs():
         df_sectorized = pd.DataFrame(columns=df.columns)
         for sector in df['sector'].unique():
             df_sector = df[df['sector'] == sector]
-            df_normalized = self.normalize(df_sector, [i for i, j in self.goal.items()])
+            df_normalized = self.normalize(df_sector, [i for i in self.goal])
             df_normalized['score_sector'] = df_normalized.apply(self.sum_score, axis=1)
             df_sectorized = pd.concat([df_sectorized, df_normalized])
         
@@ -101,7 +112,7 @@ class Calcs():
             
     def general_analyses(self, df):
         print(20*'=', 'GENERAL', 20*'=')
-        df_normalized = self.normalize(df, [i for i in self.goal.keys()])
+        df_normalized = self.normalize(df, [i for i in self.goal])
         df_normalized['score_general'] = df.apply(self.sum_score, axis=1)
 
         return df_normalized
