@@ -41,7 +41,6 @@ def get_stock_data(_list):
 
 def main():
     df = db.view()
-    
     if df is None:
         list_stocks = read_list(LIST_PATH)
         df_stock = get_stock_data(list_stocks)

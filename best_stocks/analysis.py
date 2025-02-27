@@ -100,6 +100,7 @@ class Calcs():
 
     
     def sector_analyses(self, df):
+        print(Config.WEIGHTS_STOCKS)
         print(20*'=', 'SECTOR', 20*'=')
         df_sectorized = pd.DataFrame(columns=df.columns)
         for sector in df['sector'].unique():
