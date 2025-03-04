@@ -1,8 +1,11 @@
-import yfinance as yf
+import requests
+from bs4 import BeautifulSoup
+import re
 import pandas as pd
-from IPython.display import display
-import numpy as np
-from fetch_data import main
+from database import Database
+from config import Config
+import ast
+import yfinance as yf
 
-print(min(1.0, 5.0))
-
+info = yf.Ticker('PETR4.SA').info
+print([i in i for range(30, 39)])

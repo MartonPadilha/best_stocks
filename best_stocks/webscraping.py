@@ -5,6 +5,8 @@ import pandas as pd
 from database import Database
 from config import Config
 import ast
+import yfinance as yf
+import numpy as np
 
 HEADER = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"}
 URL_BASE = f'https://statusinvest.com.br/'
@@ -12,7 +14,7 @@ LIST_PATH = 'list_stocks.txt'
 db = Database(Config.DATABASE['name'], Config.DATABASE['table'])
 
 def fetch_html(ticker):
-    url = f"{URL_BASE}/acoes/{ticker}" if not ticker.endswith("11") else f"{URL_BASE}/fundos-imobiliarios/{ticker}"
+    url = f"{URL_BASE}/acoes/{ticker}"
     response = requests.get(url, headers=HEADER)
     if response.status_code == 200:
         return BeautifulSoup(response.content, "html.parser")
@@ -34,12 +36,12 @@ def parse_html(soup, ticker):
         data_group = card.find_all('div', class_ = re.compile('indicators '))
 
         dic_indicators = {
-            'activity': [],
-            'activity_subsector': [],
-            'business_segment': [],
-            'company_code': [],
-            'company_name': [],
-            'type': [],
+            'sector': [],
+            # 'subsector': [],
+            # 'business_segment': [],
+            'ticker': [],
+            # 'company_name': [],
+            # 'type': [],
             'name': [],
             'value': []
         }
@@ -51,12 +53,12 @@ def parse_html(soup, ticker):
             for item in items:  
                 item_name = item.find('h3', class_ = re.compile('title ')).get_text()
                 item_value = item.find('strong', class_ = re.compile('value ')).get_text()
-                dic_indicators['business_segment'].append(sector[3])
-                dic_indicators['activity_subsector'].append(sector[2])
-                dic_indicators['activity'].append(sector[1])
-                dic_indicators['company_code'].append(company[:5])
-                dic_indicators['company_name'].append(company[8:])
-                dic_indicators['type'].append(indicators_type)
+                # dic_indicators['business_segment'].append(sector[3])
+                # dic_indicators['subsector'].append(sector[2])
+                dic_indicators['sector'].append(sector[1])
+                dic_indicators['ticker'].append(company[:5])
+                # dic_indicators['company_name'].append(company[8:])
+                # dic_indicators['type'].append(indicators_type)
                 dic_indicators['name'].append(item_name)
                 dic_indicators['value'].append(item_value)
 
@@ -70,27 +72,35 @@ def clean_data(df):
     if df is not None:
         df['value'] = df['value'].str.replace('%', '').str.replace('.', '').str.replace(',', '.')
         df['value'] = df['value'].apply(lambda x: '0' if x == '-' else x).astype(float)
+        df['name'] = df['name'].str.replace(' ', '_').str.replace('/', '_').str.replace('.', '').str.lower()
 
-        df = df.pivot_table(index=['business_segment', 'activity_subsector', 'activity', 'company_code', 'company_name'],
-                            columns='name', values='value', aggfunc='first').reset_index()
-        
-        df.rename(columns={
-            'company_code': 'ticker',
-            'activity': 'sector',
-            'P/L': 'p_l',
-            'P/VP': 'p_vp',
-            'D.Y': 'dividend_yield',
-            'CAGR Lucros 5 anos': 'crescimento_lucro',
-            'CAGR Receitas 5 anos': 'crescimento_receita',
-            'M. Líquida': 'm_liquida',
-            'LPA': 'lpa',
-            'Dív. líquida/EBITDA': 'div_liq_ebitda',
-            'Liq. corrente': 'liq_corrent',
-            'P/Ativo': 'passivos_ativos',
-            'ROE': 'roe'
-        }, inplace=True)
+        # df = df.pivot_table(index=['business_segment', 'activity_subsector', 'activity', 'company_code', 'company_name'],
+        #                     columns='name', values='value', aggfunc='first').reset_index()
 
         return df
+    
+def get_yfinance_data(ticker):
+    dados = []
+    error = []
+    try:
+        info = yf.Ticker(ticker + '.SA').info
+        dados.append({
+            'ticker': ticker,
+            'sector': info.get('sector', ''),
+            'p_l': info.get('forwardPE', np.nan),
+            'p_vp': info.get('priceToBook', np.nan),
+            'dividend_yield': (info.get('dividendYield', np.nan)) * 100,
+            'crescimento_lucro': (info.get('earningsGrowth', np.nan)) * 100,
+            'roe': (info.get('returnOnEquity', np.nan)) * 100,
+            'payout_ratio': info.get("payoutRatio", np.nan),
+        })
+    except Exception as e:
+        print(ticker)
+        error.append(ticker[:4])
+        print(f"Erro ao buscar {ticker}: {e}")
+
+    return pd.DataFrame(dados)
+
 
 def read_list(path):
     
@@ -99,17 +109,44 @@ def read_list(path):
     
     return file_list
 
+    df['number_code'] = df['ticker'].astype(str).str.strip().str.extract(r'(\d+)(?!.*\d)')
+    df['number_code'] = df['number_code'].astype(float).astype('Int64')
+
 def main():
-    df = db.view()
+    df = pd.DataFrame()
+    list_stocks = read_list(LIST_PATH)
+
+    for ticker in list_stocks:
+
+        if ticker.endswith('11'):
+            # df_fii = get_yfinance_data(ticker)
+            # print(df_fii)
+            # return
+            continue
+        elif ticker[-2:].isdigit() and int(ticker[-2:]) >= 32:
+            continue
+        else:
+            html = fetch_html(ticker)
+            parse = parse_html(html, ticker)
+            df_ticker = clean_data(parse)
+            df = pd.concat([df, df_ticker])
+            df['type'] = 'stock'
+
     
-    if df is None or df.empty:
-        list_stocks = read_list(LIST_PATH)
-        data_frames = [clean_data(parse_html(fetch_html(stock), stock)) for stock in list_stocks]
-        df_stock = pd.concat([df for df in data_frames if df is not None])
-        db.create(df_stock)
-        df = db.view()
+    df_final = df.pivot_table(
+        index=['sector', 'ticker', 'type'],
+        columns='name', 
+        values='value', 
+        aggfunc='first'
+    ).reset_index()
     
-    return df
+    return df_final
+            
+    # data_frames = [clean_data(parse_html(fetch_html(stock), stock)) for stock in list_stocks]
+    # df_stock = pd.concat([df for df in data_frames if df is not None])
+    # db.create(df_stock)
+    
+    # return 'Adicionando dados ao banco'
 
 if __name__ == "__main__":
     main()

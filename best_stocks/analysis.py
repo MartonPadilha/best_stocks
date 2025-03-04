@@ -9,11 +9,6 @@ import time
 
 class Calcs():
     def __init__(self, goal):
-        # if goal == 'stock':
-        #     self.goal = Config.WEIGHTS_STOCKS
-        # elif goal == 'fii':
-        #     self.goal = Config.WEIGHTS_FIIS
-            
         self.goal = goal
         
     def outliers_iqr(self, df, factor=1.5):
@@ -32,10 +27,7 @@ class Calcs():
             
             df.loc[(df[metric_col] < lower_limit) | (df[metric_col] > upper_limit), 'outlier'] = True
             
-        df[df['outlier'] == True].to_csv(f'output/outliers.csv', sep=';', encoding='utf-8', index=False, decimal=",") 
-            
-            
-        return df[df['outlier'] == False]
+        return df[df['outlier'] == False], df[df['outlier'] == True]
     
     def outliers_zscore(self, df, factor=3):
         df['outlier'] = False
@@ -44,9 +36,7 @@ class Calcs():
             
             df.loc[np.abs(zscore(df[metric_col].dropna())) > factor, 'outlier'] = True
             
-        df[df['outlier'] == True].to_csv(f'output/outliers.csv', sep=';', encoding='utf-8', index=False, decimal=",") 
-
-        return df[df['outlier'] == False]
+        return df[df['outlier'] == False], df[df['outlier'] == True]
 
     def normalize(self, df, colunas):
         
