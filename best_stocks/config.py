@@ -34,7 +34,7 @@ class Config():
       'score_sector': 0.4
       }
   
-  BASE_COLUMNS = ['ticker', 'sector']
+  BASE_COLUMNS = ['ticker', 'sector', 'type']
   
   DATABASE = {
       'name': 'stock_data',

@@ -60,7 +60,7 @@ for i in choose_weight:
 apply_button = st.sidebar.button('Aplicar Filtros')
 ######################################################
 
-    
+      
 ################ BODY ################################
 if apply_button:
     df_final, outliers = update_analysis(choose_weight, _type)
@@ -71,3 +71,6 @@ if apply_button:
     st.write('Outliers:')
     st.dataframe(outliers)
 ######################################################
+
+
+

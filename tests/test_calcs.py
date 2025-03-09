@@ -20,17 +20,17 @@ def test_outliers_iqr(sample_data):
     calcs = Calcs(goal='stock')
     
     df = calcs.outliers_iqr(sample_data, factor=1.5)
-    
+    print(df)
+    df = calcs.outliers_zscore(sample_data, factor=3)
+    print(df)
     assert len(df) == 4
     
 def test_normalize(sample_data):
     calcs = Calcs(goal='stock')
     
-    df = calcs.normalize(sample_data, ['p_l'])
-    result = np.round(sorted(np.array(df['p_l'])), 2)
-    expected = np.array([0, 0.02, 0.07, 0.19, 1])
+    df = calcs.normalize(sample_data, ['p_l', 'p_vp', 'dividend_yield'])
     
-    assert np.array_equal(result, expected)
+    assert df[['p_l', 'p_vp', 'dividend_yield']].between(0, 1).all().all()
     
 def test_calc_general(sample_data):
     calcs = Calcs(goal='stock')

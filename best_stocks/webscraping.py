@@ -141,12 +141,6 @@ def main():
     ).reset_index()
     
     return df_final
-            
-    # data_frames = [clean_data(parse_html(fetch_html(stock), stock)) for stock in list_stocks]
-    # df_stock = pd.concat([df for df in data_frames if df is not None])
-    # db.create(df_stock)
-    
-    # return 'Adicionando dados ao banco'
 
 if __name__ == "__main__":
     main()

@@ -25,7 +25,7 @@ elif choose_option == 'Atualizar Dados':
     st.text("Atualizar o banco de dados apagará todos os dados atuais e adicionará os mais recentes.")
     if st.button("Confirmar Atualização"):
         with st.spinner("Atualizando os dados... Isso pode demarar alguns minutos."):
-            df = webscraping()  # Chama a função que atualiza os dados via Web Scraping
+            df = webscraping()
             db.create(df)
             st.success("Dados atualizados com sucesso!")
     
