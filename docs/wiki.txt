@@ -1,0 +1,89 @@
+Indicadores de Rentabilidade
+
+ROE (Return on Equity) - Retorno sobre o Patrimônio Líquido
+Fórmula: Lucro / Patrimônio Líquido
+Exemplo: Se a empresa lucrou 3k e o patrimônio líquido é 30k, o ROE é 10%.
+Sucesso: Maior melhor
+Métrica: Percentual
+
+ROIC (Return on Invested Capital) - Retorno sobre o Capital Investido
+Fórmula: Lucro / Patrimônio Bruto
+Exemplo: Se a empresa lucrou 3k e o patrimônio bruto é 50k, o ROIC é 6%.
+Sucesso: Maior melhor
+Métrica: Percentual
+
+Margem Líquida
+Fórmula: Lucro Líquido / Receita Líquida
+Exemplo: Se a empresa faturou 100k e teve lucro líquido de 20k, a margem é 20%.
+Sucesso: Maior melhor
+Métrica: Percentual
+
+Margem Bruta
+Fórmula: Lucro Bruto / Receita Líquida
+Exemplo: Se a empresa faturou 100k e teve lucro bruto de 50k, a margem bruta é 50%.
+Sucesso: Maior melhor
+Métrica: Percentual
+
+Margem EBITDA
+Fórmula: EBITDA / Receita Líquida
+Exemplo: Se a empresa faturou 100k e teve um EBITDA de 30k, a margem EBITDA é 30%.
+Sucesso: Maior melhor
+Métrica: Percentual
+
+
+Indicadores de Valuation
+
+P/L (Preço sobre Lucro)
+Fórmula: Preço da Ação / Lucro por Ação
+Exemplo: Se a ação custa R$ 10 e o lucro por ação é R$ 2, o P/L é 5.
+Sucesso: Baixo pode indicar ação barata, mas depende do setor.
+Métrica: Número
+
+P/VP (Preço sobre Valor Patrimonial)
+Fórmula: Preço da Ação / Valor Patrimonial por Ação
+Exemplo: Se a ação custa R$ 10 e o valor patrimonial por ação é R$ 5, o P/VP é 2.
+Sucesso: Se for menor que 1, pode indicar ação subvalorizada.
+Métrica: Número
+
+EV/EBITDA (Enterprise Value sobre EBITDA)
+Fórmula: (Valor de Mercado + Dívida Líquida) / EBITDA
+Exemplo: Se a empresa vale 100M e tem 10M de dívida líquida e EBITDA de 20M, o EV/EBITDA é 5.
+Sucesso: Menor pode indicar ação barata.
+Métrica: Número
+
+Dividend Yield
+Fórmula: Dividendos por Ação / Preço da Ação
+Exemplo: Se a empresa pagou R$ 1 de dividendo e a ação custa R$ 20, o DY é 5%.
+Sucesso: Maior melhor (desde que sustentável).
+Métrica: Percentual
+
+
+Indicadores de Endividamento
+
+Dívida Líquida / EBITDA
+Fórmula: (Dívida Total - Caixa) / EBITDA
+Exemplo: Se a empresa tem 100M de dívida, 20M em caixa e EBITDA de 40M, o indicador é 2.
+Sucesso: Menor que 3 é aceitável.
+Métrica: Número
+
+Dívida Bruta / Patrimônio Líquido
+Fórmula: Dívida Bruta / Patrimônio Líquido
+Exemplo: Se a empresa tem 100M de dívida e patrimônio líquido de 200M, o indicador é 0.5.
+Sucesso: Quanto menor, mais sólida a empresa.
+Métrica: Número
+
+
+Indicadores de Eficiência e Crescimento
+
+Giro do Ativo
+Fórmula: Receita Líquida / Ativos Totais
+Exemplo: Se a empresa faturou 500M e tem 250M em ativos, o giro do ativo é 2.
+Sucesso: Maior indica mais eficiência.
+Métrica: Número
+
+CAGR (Compound Annual Growth Rate) - Taxa de Crescimento Anual Composta
+Fórmula: 
+(ValorFinal/ValorInicial)*(1/Anos) - 1
+Exemplo: Se o lucro era 100k e depois de 5 anos é 200k, o CAGR é 14.87%.
+Sucesso: Maior indica crescimento sustentável.
+Métrica: Percentual
