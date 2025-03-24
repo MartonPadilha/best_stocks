@@ -11,7 +11,6 @@ from .database import Database
 
 load_dotenv()
 
-
 class News():
     def __init__(self, ticker):
         self.api_key = os.getenv("TOKEN_NEWS")
@@ -44,10 +43,10 @@ class News():
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             
-            paragrafos = soup.find_all('p')
-            texto_completo = ' '.join([p.get_text() for p in paragrafos])
+            paragraph = soup.find_all('p')
+            full_text = ' '.join([p.get_text() for p in paragraph])
             
-            return texto_completo
+            return full_text
         else:
             return "Não foi possível obter a notícia."
 

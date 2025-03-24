@@ -5,18 +5,29 @@ from database import Database
 from config import Config
 from analysis import Calcs
 import warnings
+import os
+import sys
 
+import sys
+import os
+
+src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+if src_path not in sys.path:
+    sys.path.append(src_path)
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)
 
 db = Database('stock_data', Config.DATABASE)
 
-def update_analysis(weights, type):
+def update_analysis(type):
     df_base = db.view()
+    
+    max_date = df_base['reference_date'].max()
+    df_base = df_base[df_base['reference_date'] == max_date]
     df_base = df_base[df_base['type'] == type]
     
-    df, outliers = calcs.outliers_zscore(df_base, 3)
+    df, outliers = calcs.outliers_zscore(df_base, 4)
 
     df_sectorized = calcs.sector_analyses(df)
     df_general = calcs.general_analyses(df)
@@ -39,13 +50,13 @@ if choose_buttom == "Ações":
     calcs = Calcs(choose_weight)
     st.header(f'Análise de {choose_buttom}')
     st.write(f'Você pode visualizar e analisar {choose_buttom} com base nos indicadores e pesos escolhidos.')
-    # st.line_chart({"Preço": [100, 105, 102, 110, 108]})
+
 elif choose_buttom == "FIIs":
     choose_weight = Config.WEIGHTS_FIIS
     calcs = Calcs(choose_weight)
     st.header(f'Análise de {choose_buttom}')
     st.write(f'Você pode visualizar e analisar {choose_buttom} com base nos indicadores e pesos escolhidos.')
-    # st.line_chart({"Preço": [100, 105, 102, 110, 108]})
+
 #####################################################
 
 ################ SIDEBAR #############################
@@ -63,7 +74,7 @@ apply_button = st.sidebar.button('Aplicar Filtros')
       
 ################ BODY ################################
 if apply_button:
-    df_final, outliers = update_analysis(choose_weight, _type)
+    df_final, outliers = update_analysis(_type)
 
     st.write('Ações rankeadas:')
     st.dataframe(df_final)
@@ -73,4 +84,4 @@ if apply_button:
 ######################################################
 
 
-
+    print(df_final)

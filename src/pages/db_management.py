@@ -11,7 +11,7 @@ st.set_page_config(layout='wide')
 st.title('Gerenciamento do Banco de Dados')
 
 choose_option = st.radio('O que deseja fazer?', ['Visualizar Dados', 'Atualizar Dados'])
-st.text(f"Database: {'stock_data'}\nTabela: {Config.DATABASE}")
+st.text(f"Database: {Config.DATABASE}\nTabela: stock_data")
 
 if choose_option == 'Visualizar Dados':
     df = db.view()
@@ -26,6 +26,6 @@ elif choose_option == 'Atualizar Dados':
     if st.button("Confirmar Atualização"):
         with st.spinner("Atualizando os dados... Isso pode demarar alguns minutos."):
             df = webscraping()
-            db.create(df)
+            db.append(df, ['ticker', 'reference_date'])
             st.success("Dados atualizados com sucesso!")
     

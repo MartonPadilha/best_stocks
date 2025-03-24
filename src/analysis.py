@@ -33,7 +33,6 @@ class Calcs():
             
             lower_limit = first_quartil - factor * iqr
             upper_limit = third_quartil + factor * iqr
-            print(f'{metric_col}: {lower_limit} - {upper_limit}')
             
             df.loc[(df[metric_col] < lower_limit) | (df[metric_col] > upper_limit), 'outlier'] = True
             

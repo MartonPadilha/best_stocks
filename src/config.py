@@ -5,22 +5,23 @@ class Config():
   
   WEIGHTS_STOCKS = {
     #growth
-    'cagr_lucros_5_anos': {'weight': 0.15, 'normalization': 'default'},
-    'cagr_receitas_5_anos': {'weight': 0.12, 'normalization': 'default'},
+    'cagr_lucros_5_anos': {'weight': 0.12, 'normalization': 'default'},
+    'cagr_receitas_5_anos': {'weight': 0.1, 'normalization': 'default'},
     #profitability
     'm_líquida': {'weight': 0.08, 'normalization': 'default'},
-    'roe': {'weight': 0.12, 'normalization': 'default'},
-    'lpa': {'weight': 0.08, 'normalization': 'default'}, 
+    'roe': {'weight': 0.1, 'normalization': 'default'},
+    'roic': {'weight': 0.1, 'normalization': 'default'}, 
+    'lpa': {'weight': 0.07, 'normalization': 'default'}, 
     #indebtedness
-    'dív_líquida_ebitda': {'weight': 0.13, 'normalization': 'inverter'},
-    'passivos_ativos': {'weight': 0.04, 'normalization': 'inverter'},
+    'dív_líquida_ebitda': {'weight': 0.08, 'normalization': 'inverter'},
+    'passivos_ativos': {'weight': 0.05, 'normalization': 'inverter'},
     #liquidity
-    'liq_corrente': {'weight': 0.08, 'normalization': 'default'},
+    'liq_corrente': {'weight': 0.07, 'normalization': 'default'},
     #valuation
-    'p_l': {'weight': 0.08, 'normalization': 'inverter_zero'},
-    'p_vp': {'weight': 0.04, 'normalization': 'inverter_one'},
+    'p_l': {'weight': 0.06, 'normalization': 'inverter_zero'},
+    'p_vp': {'weight': 0.05, 'normalization': 'inverter_one'},
     #dividend
-    'dy': {'weight': 0.08, 'normalization': 'default'}
+    'dy': {'weight': 0.12, 'normalization': 'default'}
   }
   
   WEIGHTS_FIIS = {
@@ -34,6 +35,6 @@ class Config():
     'score_sector': 0.4
   }
   
-  BASE_COLUMNS = ['ticker', 'sector', 'type']
+  BASE_COLUMNS = ['ticker', 'sector', 'type', 'reference_date']
   
   DATABASE = 'storage/temp_db.sqlite'

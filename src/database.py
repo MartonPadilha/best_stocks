@@ -28,14 +28,28 @@ class Database():
         except Exception as e:
             print("Erro ao salvar os dados:", e)
             
-    def append(self, data):
+    def append(self, data, key):
         try: 
             conn = sqlite3.connect(self.db_path)
-            data.to_sql(self.table_name, conn, if_exists="append", index=False)
-            conn.close()
-            print(f'Dados adicionados com sucesso!')
+            
+            key_expr = " || ".join(key)
+            
+            query = f"SELECT {key_expr} AS key FROM {self.table_name}"
+
+            existing_keys = set(pd.read_sql(query, conn)['key'])
+            
+            data['key'] = data[key].astype(str).agg(''.join, axis = 1)
+
+            data_to_append = data[~data['key'].isin(existing_keys)].drop(columns=['key'])
+
+            if not data_to_append.empty:
+                data_to_append.to_sql(self.table_name, conn, if_exists="append", index=False)
+                print(f'{len(data_to_append)} novos registros adicionados com sucesso!')
+            else:
+                print("Nenhum novo registro foi adicionado, todos já existem.")
         except Exception as e:
             print('Erro ao adicionar dados:', e)
+            return
             
     def delete(self):
         try: 
@@ -47,3 +61,4 @@ class Database():
             print(f'Tabela {self.table_name} deletada com sucesso!')
         except Exception as e:
             print('Erro ao deletar a tabela:', e)
+            

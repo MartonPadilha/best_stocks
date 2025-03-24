@@ -7,6 +7,7 @@ from config import Config
 import ast
 import yfinance as yf
 import numpy as np
+import datetime
 
 HEADER = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"}
 URL_BASE = f'https://statusinvest.com.br/'
@@ -37,28 +38,19 @@ def parse_html(soup, ticker):
 
         dic_indicators = {
             'sector': [],
-            # 'subsector': [],
-            # 'business_segment': [],
             'ticker': [],
-            # 'company_name': [],
-            # 'type': [],
             'name': [],
             'value': []
         }
 
         for break_one in data_group:
-            indicators_type = break_one.find('strong', class_ = 'd-block uppercase').get_text()
 
             items = break_one.find_all('div', class_ = re.compile(' item'))
             for item in items:  
                 item_name = item.find('h3', class_ = re.compile('title ')).get_text()
                 item_value = item.find('strong', class_ = re.compile('value ')).get_text()
-                # dic_indicators['business_segment'].append(sector[3])
-                # dic_indicators['subsector'].append(sector[2])
                 dic_indicators['sector'].append(sector[1])
                 dic_indicators['ticker'].append(company[:5])
-                # dic_indicators['company_name'].append(company[8:])
-                # dic_indicators['type'].append(indicators_type)
                 dic_indicators['name'].append(item_name)
                 dic_indicators['value'].append(item_value)
 
@@ -73,9 +65,6 @@ def clean_data(df):
         df['value'] = df['value'].str.replace('%', '').str.replace('.', '').str.replace(',', '.')
         df['value'] = df['value'].apply(lambda x: '0' if x == '-' else x).astype(float)
         df['name'] = df['name'].str.replace(' ', '_').str.replace('/', '_').str.replace('.', '').str.lower()
-
-        # df = df.pivot_table(index=['business_segment', 'activity_subsector', 'activity', 'company_code', 'company_name'],
-        #                     columns='name', values='value', aggfunc='first').reset_index()
 
         return df
     
@@ -109,9 +98,6 @@ def read_list(path):
     
     return file_list
 
-    df['number_code'] = df['ticker'].astype(str).str.strip().str.extract(r'(\d+)(?!.*\d)')
-    df['number_code'] = df['number_code'].astype(float).astype('Int64')
-
 def main():
     df = pd.DataFrame()
     list_stocks = read_list(LIST_PATH)
@@ -139,6 +125,8 @@ def main():
         values='value', 
         aggfunc='first'
     ).reset_index()
+    
+    df_final['reference_date'] = datetime.date.today()
     
     return df_final
 
