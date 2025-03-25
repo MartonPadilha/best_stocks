@@ -16,33 +16,37 @@ def add_data():
     d_7 =  str(datetime.today() - timedelta(days=7))
     data = []
     for ticker in tickers_list:
+        if ticker == 'VIVT3':
+            print('entrou')
 
-        news = News(ticker)
+            news = News(ticker)
 
-        response = news.get_news()
+            response = news.get_news()
+            print(response)
 
-        if response:
-            for article in response:
-                if article['date'] >= d_7:
-                    print(f'Novas notícias para {ticker}')
-                    try:
-                        article['ticker'] = ticker
-                        text = news.get_full_article(article['url'])
-                        article['summary'] = news.openai(f"Noticia sobre {ticker}: {text}")
-                        pattern = r"A nota é:\s*(-?\d+)"
-                        match = re.search(pattern, article['summary'])
-                        article['score'] = match.group(1) if match else None
+            if response:
+                for article in response:
+                    if article['date'] >= d_7:
+                        print(f'Novas notícias para {ticker}')
+                        try:
+                            article['ticker'] = ticker
+                            text = news.get_full_article(article['url'])
+                            article['summary'] = news.openai(f"Noticia sobre {ticker}: {text}")
+                            pattern = r"A nota é:\s*(-?\d+)"
+                            match = re.search(pattern, article['summary'])
+                            article['score'] = match.group(1) if match else None
 
-                        itens = {'ticker', 'date', 'url', 'summary', 'score'}
-                        article = {k: [v] for k, v in article.items() if k in itens }
-                        data.append(article)
+                            itens = {'ticker', 'date', 'url', 'summary', 'score'}
+                            article = {k: [v] for k, v in article.items() if k in itens }
+                            data.append(article)
 
-                    except Exception as e:
-                        print(ticker, e)
+                        except Exception as e:
+                            print(ticker, e)
         
     df_article = pd.DataFrame(data)
+    print(df_article)
 
-    db_news.append(df_article, ['url'])
+            # db_news.append(df_article, ['url'])
 
 
 df = db_news.view()

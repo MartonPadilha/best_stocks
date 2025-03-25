@@ -2,8 +2,8 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import pandas as pd
-from database import Database
-from config import Config
+from .database import Database
+from .config import Config
 import ast
 import yfinance as yf
 import numpy as np
@@ -22,9 +22,9 @@ def fetch_html(ticker):
     else:
         return print('Error to get HTML')
     
-def parse_html(soup, ticker):
+def parse_indicators(html, ticker):
     try:
-        company_sector_infos = soup.find_all('div', class_ = re.compile('card bg-main-gd-h white-text rounded ov-hidden pt-0 pb-0'))[0]
+        company_sector_infos = html.find_all('div', class_ = re.compile('card bg-main-gd-h white-text rounded ov-hidden pt-0 pb-0'))[0]
         company_sector_info = company_sector_infos.find_all('div', class_ = re.compile('info '))
         sector = []
         for sector_info in company_sector_info:
@@ -32,8 +32,8 @@ def parse_html(soup, ticker):
             info = a.find('strong', class_ = 'value').get_text()
             sector.append(info)
 
-        company = soup.find('h1', class_ = 'lh-4').get_text()
-        card = soup.find_all('div', class_ = 'indicator-today-container')[0]
+        company = html.find('h1', class_ = 'lh-4').get_text()
+        card = html.find_all('div', class_ = 'indicator-today-container')[0]
         data_group = card.find_all('div', class_ = re.compile('indicators '))
 
         dic_indicators = {
@@ -68,6 +68,34 @@ def clean_data(df):
 
         return df
     
+def parse_dividend_table(html, ticker):
+    reference_date = pd.to_datetime(datetime.date.today())
+    print(ticker)
+    try:
+        div_list_content = html.find("div", class_="list-content")
+        if div_list_content:
+            table = div_list_content.find("table")
+            if table:
+
+                headers = [th.get_text(strip=True) for th in table.find("thead").find_all("th")]
+                rows = []
+                for tr in table.find("tbody").find_all("tr"):
+                    rows.append([td.get_text(strip=True) for td in tr.find_all("td")])
+
+                df = pd.DataFrame(rows, columns=headers)
+                df['ticker'] = ticker
+                df['data_compra'] = pd.to_datetime(df['DATA COM'], format='%d/%m/%Y')
+                df = df[df['data_compra'] > reference_date]
+
+                if df.empty:
+                    return
+                else:
+                    return df
+
+    except Exception as e:
+        return
+    
+    
 def get_yfinance_data(ticker):
     dados = []
     error = []
@@ -100,6 +128,7 @@ def read_list(path):
 
 def main():
     df = pd.DataFrame()
+    df_divended = pd.DataFrame()
     list_stocks = read_list(LIST_PATH)
 
     for ticker in list_stocks:
@@ -113,22 +142,27 @@ def main():
             continue
         else:
             html = fetch_html(ticker)
-            parse = parse_html(html, ticker)
-            df_ticker = clean_data(parse)
-            df = pd.concat([df, df_ticker])
-            df['type'] = 'stock'
+            if html:
+                dividends = parse_dividend_table(html, ticker)
+                df_divended = pd.concat([df_divended, dividends])
+                    
+    df_divended.to_csv(f'output/divedend.csv', sep=';', encoding='utf-8', index=False, decimal=",")
+                    # indicators = parse_indicators(html, ticker)
+                    # df_ticker = clean_data(indicators)
+                    # df = pd.concat([df, df_ticker])
+                    # df['type'] = 'stock'
 
     
-    df_final = df.pivot_table(
-        index=['sector', 'ticker', 'type'],
-        columns='name', 
-        values='value', 
-        aggfunc='first'
-    ).reset_index()
+    # df_final = df.pivot_table(
+    #     index=['sector', 'ticker', 'type'],
+    #     columns='name', 
+    #     values='value', 
+    #     aggfunc='first'
+    # ).reset_index()
     
-    df_final['reference_date'] = datetime.date.today()
+    # df_final['reference_date'] = datetime.date.today()
     
-    return df_final
+    # return df_final
 
 if __name__ == "__main__":
     main()
