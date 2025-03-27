@@ -18,10 +18,9 @@ if src_path not in sys.path:
 warnings.simplefilter(action="ignore", category=FutureWarning)
 warnings.simplefilter(action="ignore", category=pd.errors.SettingWithCopyWarning)
 
-db = Database('stock_data', Config.DATABASE)
 
-def update_analysis(type):
-    df_base = db.view()
+def analysis_tickers(type):
+    df_base = Database('stock_data', Config.DATABASE).view()
     
     max_date = df_base['reference_date'].max()
     df_base = df_base[df_base['reference_date'] == max_date]
@@ -38,6 +37,20 @@ def update_analysis(type):
     df_final = pd.merge(df_final, df_base, on='ticker', how='inner')
 
     return df_final, outliers
+
+def show_dividends():
+    df_base = Database('dividends', Config.DATABASE).view()
+    
+    df_base['total_value'] = df_base.groupby('ticker')['value'].transform('sum')
+
+    return df_base
+
+def show_news():
+    df_base = Database('news', Config.DATABASE).view()
+    df_base['score'] = df_base['score'].astype(int)
+    df_base['avg_score'] = df_base.groupby('ticker')['score'].transform('mean')
+
+    return df_base
 
 st.set_page_config(layout='wide')
 
@@ -74,14 +87,17 @@ apply_button = st.sidebar.button('Aplicar Filtros')
       
 ################ BODY ################################
 if apply_button:
-    df_final, outliers = update_analysis(_type)
+    # df_final, outliers = analysis_tickers(_type)
 
-    st.write('Ações rankeadas:')
-    st.dataframe(df_final)
+    st.subheader('Ações rankeadas:')
+    st.dataframe(analysis_tickers(_type)[0])
+    
+    st.subheader('Dividendos:')
+    st.dataframe(show_dividends())
+    
+    st.write('Notícias:')
+    st.dataframe(show_news())
     
     st.write('Outliers:')
-    st.dataframe(outliers)
+    st.dataframe(analysis_tickers(_type)[1])
 ######################################################
-
-
-    print(df_final)

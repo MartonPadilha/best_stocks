@@ -44,6 +44,19 @@ def parse_dividend_table(html, ticker):
         df['data_compra'] = pd.to_datetime(df['DATA COM'], format='%d/%m/%Y')
         df = df[df['data_compra'] > reference_date]
         
+        df.rename(
+            columns={
+                'Tipo': 'type', 
+                'DATA COM': 'purchase_date',
+                'Pagamento': 'payment_date',
+                'Valor': 'value'
+                }, 
+            inplace=True)
+        
+        df = df[['ticker', 'type', 'purchase_date', 'payment_date', 'value']]
+        
+        df['value'] = df['value'].str.replace(',', '.').astype(float)
+        
         return df if not df.empty else None
 
     except Exception as e:
