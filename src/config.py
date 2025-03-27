@@ -38,3 +38,21 @@ class Config():
   BASE_COLUMNS = ['ticker', 'sector', 'type', 'reference_date']
   
   DATABASE = 'storage/temp_db.sqlite'
+  
+  TABLES = {
+    'stock_data': {
+      'insert': 'append',
+      'keys': ['ticker', 'reference_date'],
+      'file': 'src\input\stock_data.py'
+    },
+    'news': {
+      'insert': 'append',
+      'keys': ['url'],
+      'file': 'src\input\\news.py'
+    },
+    'dividends': {
+      'insert': 'overwrite',
+      'keys': ['ticker'],
+      'file': 'src\input\dividends.py'
+    },
+  }

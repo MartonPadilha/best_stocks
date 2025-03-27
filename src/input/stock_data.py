@@ -2,25 +2,27 @@ import requests
 from bs4 import BeautifulSoup
 import re
 import pandas as pd
-from .database import Database
-from .config import Config
 import ast
 import yfinance as yf
 import numpy as np
 import datetime
+from tqdm import tqdm
 
 HEADER = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"}
 URL_BASE = f'https://statusinvest.com.br/'
 LIST_PATH = 'storage/tickers_list.txt'
-db = Database('stock_data', Config.DATABASE)
 
 def fetch_html(ticker):
+    """ Gets HTML of the StatusInvest page for the given ticker. """
+    
     url = f"{URL_BASE}/acoes/{ticker}"
-    response = requests.get(url, headers=HEADER)
-    if response.status_code == 200:
+    try:
+        response = requests.get(url, headers=HEADER, timeout=10)
+        response.raise_for_status()
         return BeautifulSoup(response.content, "html.parser")
-    else:
-        return print('Error to get HTML')
+    except requests.RequestException as e:
+        print(f"Error in {ticker}: {e}")
+        return
     
 def parse_indicators(html, ticker):
     try:
@@ -68,34 +70,6 @@ def clean_data(df):
 
         return df
     
-def parse_dividend_table(html, ticker):
-    reference_date = pd.to_datetime(datetime.date.today())
-    print(ticker)
-    try:
-        div_list_content = html.find("div", class_="list-content")
-        if div_list_content:
-            table = div_list_content.find("table")
-            if table:
-
-                headers = [th.get_text(strip=True) for th in table.find("thead").find_all("th")]
-                rows = []
-                for tr in table.find("tbody").find_all("tr"):
-                    rows.append([td.get_text(strip=True) for td in tr.find_all("td")])
-
-                df = pd.DataFrame(rows, columns=headers)
-                df['ticker'] = ticker
-                df['data_compra'] = pd.to_datetime(df['DATA COM'], format='%d/%m/%Y')
-                df = df[df['data_compra'] > reference_date]
-
-                if df.empty:
-                    return
-                else:
-                    return df
-
-    except Exception as e:
-        return
-    
-    
 def get_yfinance_data(ticker):
     dados = []
     error = []
@@ -127,11 +101,10 @@ def read_list(path):
     return file_list
 
 def main():
-    df = pd.DataFrame()
-    df_divended = pd.DataFrame()
+    data_frames = []
     list_stocks = read_list(LIST_PATH)
 
-    for ticker in list_stocks:
+    for ticker in tqdm(list_stocks, desc="Processing tickers"):
 
         if ticker.endswith('11'):
             # df_fii = get_yfinance_data(ticker)
@@ -143,26 +116,24 @@ def main():
         else:
             html = fetch_html(ticker)
             if html:
-                dividends = parse_dividend_table(html, ticker)
-                df_divended = pd.concat([df_divended, dividends])
-                    
-    df_divended.to_csv(f'output/divedend.csv', sep=';', encoding='utf-8', index=False, decimal=",")
-                    # indicators = parse_indicators(html, ticker)
-                    # df_ticker = clean_data(indicators)
-                    # df = pd.concat([df, df_ticker])
-                    # df['type'] = 'stock'
-
+                df = parse_indicators(html, ticker)
+                df = clean_data(df)
+                df['type'] = 'stock'
+                if df is not None:
+                    data_frames.append(df)
+                
+    final_df = pd.concat(data_frames, ignore_index = True)
     
-    # df_final = df.pivot_table(
-    #     index=['sector', 'ticker', 'type'],
-    #     columns='name', 
-    #     values='value', 
-    #     aggfunc='first'
-    # ).reset_index()
+    final_df = final_df.pivot_table(
+        index=['sector', 'ticker', 'type'],
+        columns='name', 
+        values='value', 
+        aggfunc='first'
+    ).reset_index()
     
-    # df_final['reference_date'] = datetime.date.today()
+    final_df['reference_date'] = datetime.date.today()
     
-    # return df_final
+    return final_df
 
 if __name__ == "__main__":
     main()

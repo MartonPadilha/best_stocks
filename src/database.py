@@ -44,11 +44,11 @@ class Database():
 
             if not data_to_append.empty:
                 data_to_append.to_sql(self.table_name, conn, if_exists="append", index=False)
-                print(f'{len(data_to_append)} novos registros adicionados com sucesso!')
+                print(f'{len(data_to_append)} new records added with success!')
             else:
-                print("Nenhum novo registro foi adicionado, todos já existem.")
+                print("No records added!")
         except Exception as e:
-            print('Erro ao adicionar dados:', e)
+            print('Error:', e)
             return
             
     def delete(self):

@@ -1,31 +1,63 @@
 import streamlit as st
-import pandas as pd
-from webscraping import main as webscraping
 from database import Database
 from config import Config
+import importlib.util
+import os
 
-db = Database('stock_data', Config.DATABASE)
-
-st.set_page_config(layout='wide')
-
-st.title('Gerenciamento do Banco de Dados')
-
-choose_option = st.radio('O que deseja fazer?', ['Visualizar Dados', 'Atualizar Dados'])
-st.text(f"Database: {Config.DATABASE}\nTabela: stock_data")
-
-if choose_option == 'Visualizar Dados':
-    df = db.view()
-    if df is None:
-        st.text("Sem dados!")
-    else:
-        st.dataframe(df)
-        
-elif choose_option == 'Atualizar Dados':
-    st.subheader("Atualizar Dados do Banco")
-    st.text("Atualizar o banco de dados apagará todos os dados atuais e adicionará os mais recentes.")
-    if st.button("Confirmar Atualização"):
-        with st.spinner("Atualizando os dados... Isso pode demarar alguns minutos."):
-            df = webscraping()
-            db.append(df, ['ticker', 'reference_date'])
-            st.success("Dados atualizados com sucesso!")
+DB_PATH = Config.DATABASE
     
+def load_and_run(table_name):
+    file_path = Config.TABLES[table_name]['file']
+    
+    if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Erro: Arquivo '{file_path}' não encontrado.")
+        
+    module_name = os.path.splitext(os.path.basename(file_path))[0]
+    spec = importlib.util.spec_from_file_location(module_name, file_path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    
+    if hasattr(module, "main"):
+        return module.main()
+    else:
+        raise AttributeError(f"Erro: O módulo '{module_name}' não tem uma função 'main'.")
+
+st.title("Gerenciamento do Banco de Dados SQLite")
+
+tables = Config.TABLES.keys()
+
+if not tables:
+    st.warning("Nenhuma tabela encontrada no banco de dados.")
+    st.stop()
+    
+selected_table = st.selectbox("Escolha uma tabela:", tables)
+
+db = Database(selected_table, DB_PATH)
+
+st.subheader(f"Dados da tabela: {selected_table}")
+df = db.view()
+if df is not None and not df.empty:
+    st.dataframe(df)
+else:
+    st.write("Tabela vazia ou erro ao carregar dados.")
+    
+st.subheader(f"Atualizar dados da tabela: {selected_table}")
+
+insert_mode = Config.TABLES[selected_table]['insert']
+st.text(f"Método de atualização dessa tabela: {insert_mode.upper()}")
+
+if st.button("Atualizar Tabela"):
+    with st.spinner("Atualizando dados..."):
+        try:
+            df = load_and_run(selected_table)
+            
+            if insert_mode == 'overwrite':
+                db.create(df)
+            elif insert_mode == 'append':
+                db.append(df, Config.TABLES[selected_table]['keys'])
+                
+            st.write('Dados Atualizados.')
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erro ao atualizar a tabela {selected_table}: {e}")
+
