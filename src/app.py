@@ -47,6 +47,7 @@ def show_dividends():
 
 def show_news():
     df_base = Database('news', Config.DATABASE).view()
+    df_base = df_base[df_base['score'].notnull()]
     df_base['score'] = df_base['score'].astype(int)
     df_base['avg_score'] = df_base.groupby('ticker')['score'].transform('mean')
 

@@ -56,7 +56,7 @@ class News():
     
     def openai(self, news):
         
-        prompt = f"""Em um paragrafo, avalie a notícia abaixo de acordo com sua qualidade geral e impacto positivo ou negativo no para a empresa no mercado financeiro.
+        prompt = f"""Em um parágrafo, avalie a notícia abaixo de acordo com sua qualidade geral e impacto positivo ou negativo no para a empresa no mercado financeiro.
                 Dê uma nota de -2 a 2, considerando:
                 -2: A notícia é extremamente negativa e prejudicial, com um impacto sério e imediato para empresa ou mercado financeiro.
                 -1: A notícia é negativa, mas com um impacto moderado ou de longo prazo, que pode gerar alguma preocupação para empresa ou mercado financeiro.
