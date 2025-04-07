@@ -76,7 +76,7 @@ class Calcs():
                 df.loc[:, col] = 1 - df[col]
                 
             elif self.goal[col]['normalization'] == 'inverter_zero':
-                df[col] = np.log1p(df[col]) # I chose a logarithmic scale to smooth out de high variance of the values
+                # df[col] = np.log1p(df[col]) # I chose a logarithmic scale to smooth out de high variance of the values
                 _min, _max = df[col].min(), df[col].max()
                 df.loc[df[col] <= 0, col] = np.nan
                 df.loc[:, col] = (df[col] - _min) / (_max - _min)

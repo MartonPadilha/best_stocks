@@ -38,6 +38,33 @@ def analysis_tickers(type):
 
     return df_final, outliers
 
+def analysis_rank(type):
+    df_base = Database('stock_data', Config.DATABASE).view()
+    
+    df_base = df_base[df_base['type'] == type]
+    
+    unique_dates = df_base['reference_date'].sort_values().unique()
+    
+    result = []
+    for date in unique_dates:
+        df_day = df_base[df_base['reference_date'] == date]
+        
+        df, outliers = calcs.outliers_zscore(df_day, 4)
+
+        df_sectorized = calcs.sector_analyses(df)
+        df_general = calcs.general_analyses(df)
+
+        df_final = calcs.final_sum_score(df_sectorized, df_general)
+        df_final = df_final.sort_values(by=['score_final'], ascending=False)
+        
+        df_final['rank'] = df_final['score_final'].rank(ascending=False, method='min').astype(int)
+        df_final['date'] = date
+        result.append(df_final)
+        
+    df_all = pd.concat(result, ignore_index=True)
+
+    return df_all[['date', 'ticker', 'rank']]
+
 def show_dividends():
     df_base = Database('dividends', Config.DATABASE).view()
     
@@ -101,4 +128,25 @@ if apply_button:
     
     st.write('Outliers:')
     st.dataframe(analysis_tickers(_type)[1])
+    
+    ### Line Graph - Rank top tickers
+    df_graph = analysis_rank(_type)
+    filter_ = df_graph.groupby('ticker')['rank'].mean().reset_index()
+    filter_['rank'] = filter_['rank'].rank(ascending=True).astype(int)
+    top_tickers = np.array(filter_[filter_['rank'] <= 10]['ticker'])
+
+    df_filtered = df_graph[df_graph['ticker'].isin(top_tickers)]
+    import plotly.express as px
+    fig = px.line(
+        df_filtered,
+        x='date',
+        y='rank',
+        color='ticker',
+        title='Evolução do Rank por Ticker',
+        markers=True
+    )
+    fig.update_yaxes(autorange='reversed')
+
+    st.plotly_chart(fig, use_container_width=True)
+    
 ######################################################
