@@ -26,6 +26,6 @@ jobs:
 
       - name: Run the scraping script
         run: |
-          poetry run python src\input\stock_data.py
-          poetry run python src\input\news.py
-          poetry run python src\input\dividends.py
+          poetry run python src/input/stock_data.py
+          poetry run python src/input/news.py
+          poetry run python src/input/dividends.py
