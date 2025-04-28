@@ -1,15 +1,21 @@
-[project]
+[tool.poetry]
 name = "best-stocks"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "MartonPadilha",email = "martonpad@gmail.com"}
-]
+authors = ["MartonPadilha <martonpad@gmail.com>"]
 readme = "README.md"
-requires-python = ">=3.11"
-dependencies = [
-]
+package-mode = false
 
+[tool.poetry.dependencies]
+python = ">=3.11"
+pandas = ">=2.2.3,<3.0.0"
+numpy = ">=2.2.5,<3.0.0"
+requests = ">=2.32.3,<3.0.0"
+beautifulsoup4 = ">=4.13.4,<5.0.0"
+streamlit = ">=1.44.1,<2.0.0"
+scipy = ">=1.15.2,<2.0.0"
+yfinance = ">=0.2.56,<0.3.0"
+google-generativeai = "^0.5.4"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

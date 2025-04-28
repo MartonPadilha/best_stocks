@@ -1,0 +1,31 @@
+name: Run Web Scraping Daily
+
+on:
+  schedule:
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+jobs:
+  run_scraper:
+    runs-on: ubuntu-latest 
+    
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v2
+
+      - name: Set up Python
+        uses: actions/setup-python@v2
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install poetry
+          poetry install  # Instala as dependências do Poetry
+
+      - name: Run the scraping script
+        run: |
+          poetry run python src\input\stock_data.py
+          poetry run python src\input\news.py
+          poetry run python src\input\dividends.py
