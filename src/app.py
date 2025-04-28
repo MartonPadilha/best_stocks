@@ -26,7 +26,7 @@ def analysis_tickers(type):
     df_base = df_base[df_base['reference_date'] == max_date]
     df_base = df_base[df_base['type'] == type]
     
-    df, outliers = calcs.outliers_zscore(df_base, 4)
+    df, outliers = calcs.outliers_zscore(df_base, 4.5)
 
     df_sectorized = calcs.sector_analyses(df)
     df_general = calcs.general_analyses(df)
