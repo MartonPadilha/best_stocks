@@ -8,8 +8,10 @@ import numpy as np
 import datetime
 from tqdm import tqdm
 
-HEADER = {'User-Agent': "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36"}
-URL_BASE = f'https://statusinvest.com.br/'
+HEADER = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
+}
+URL_BASE = f'https://statusinvest.com.br'
 LIST_PATH = 'storage/tickers_list.txt'
 
 def fetch_html(ticker):
