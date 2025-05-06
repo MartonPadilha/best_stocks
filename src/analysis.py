@@ -51,9 +51,13 @@ class Calcs():
         """
         df['outlier'] = False
         
-        for metric_col in [i for i in self.goal.keys()]:
+        for metric_col in self.goal:
+            z_scores = zscore(df[metric_col].dropna())
             
-            df.loc[np.abs(zscore(df[metric_col].dropna())) > factor, 'outlier'] = True
+            
+            # df.loc[z_scores > factor, 'outlier'] = True
+            
+            df.loc[np.abs(z_scores) > factor, 'outlier'] = True
             
         return df[df['outlier'] == False], df[df['outlier'] == True]
 

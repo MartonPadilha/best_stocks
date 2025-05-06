@@ -33,7 +33,7 @@ class News():
                     'url': article['url']
                 }
                 news.append(item)
-            
+
             return news
         except Exception as e:
             print(f'Error fetching news for {self.ticker}: {e}')
