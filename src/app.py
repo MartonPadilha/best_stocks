@@ -93,6 +93,7 @@ if choose_buttom == "Ações":
     st.write(f'Você pode visualizar e analisar {choose_buttom} com base nos indicadores e pesos escolhidos.')
 
 elif choose_buttom == "FIIs":
+    _type = 'fii'
     choose_weight = Config.WEIGHTS_FIIS
     calcs = Calcs(choose_weight)
     st.header(f'Análise de {choose_buttom}')
@@ -116,37 +117,41 @@ apply_button = st.sidebar.button('Aplicar Filtros')
 ################ BODY ################################
 if apply_button:
     # df_final, outliers = analysis_tickers(_type)
+    if _type == 'stock':
 
-    st.subheader('Ações rankeadas:')
-    st.dataframe(analysis_tickers(_type)[0])
-    
-    st.subheader('Dividendos:')
-    st.dataframe(show_dividends())
-    
-    st.write('Notícias:')
-    st.dataframe(show_news())
-    
-    st.write('Outliers:')
-    st.dataframe(analysis_tickers(_type)[1])
-    
-    ### Line Graph - Rank top tickers
-    df_graph = analysis_rank(_type)
-    filter_ = df_graph.groupby('ticker')['rank'].mean().reset_index()
-    filter_['rank'] = filter_['rank'].rank(ascending=True).astype(int)
-    top_tickers = np.array(filter_[filter_['rank'] <= 10]['ticker'])
+        st.subheader('Ações rankeadas:')
+        st.dataframe(analysis_tickers(_type)[0])
+        
+        st.subheader('Dividendos:')
+        st.dataframe(show_dividends())
+        
+        st.write('Notícias:')
+        st.dataframe(show_news())
+        
+        st.write('Outliers:')
+        st.dataframe(analysis_tickers(_type)[1])
+        
+        ### Line Graph - Rank top tickers
+        df_graph = analysis_rank(_type)
+        filter_ = df_graph.groupby('ticker')['rank'].mean().reset_index()
+        filter_['rank'] = filter_['rank'].rank(ascending=True).astype(int)
+        top_tickers = np.array(filter_[filter_['rank'] <= 10]['ticker'])
 
-    df_filtered = df_graph[df_graph['ticker'].isin(top_tickers)]
-    import plotly.express as px
-    fig = px.line(
-        df_filtered,
-        x='date',
-        y='rank',
-        color='ticker',
-        title='Evolução do Rank por Ticker',
-        markers=True
-    )
-    fig.update_yaxes(autorange='reversed')
+        df_filtered = df_graph[df_graph['ticker'].isin(top_tickers)]
+        import plotly.express as px
+        fig = px.line(
+            df_filtered,
+            x='date',
+            y='rank',
+            color='ticker',
+            title='Evolução do Rank por Ticker',
+            markers=True
+        )
+        fig.update_yaxes(autorange='reversed')
 
-    st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
+
+    elif _type == 'fii':
+        st.write("FIIs analysis is not implemented yet.")
     
 ######################################################
