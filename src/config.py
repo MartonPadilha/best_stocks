@@ -76,4 +76,9 @@ class Config():
       'keys': ['ticker'],
       'file': 'src\input\dividends.py'
     },
+    'fii_data': {
+      'insert': 'overwrite',
+      'keys': ['ticker'],
+      'file': 'src\input\\fii_data.py'
+    },
   }
