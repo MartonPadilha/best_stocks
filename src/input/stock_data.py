@@ -7,10 +7,7 @@ import yfinance as yf
 import numpy as np
 import datetime
 from tqdm import tqdm
-
-# HEADER = {
-#     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
-# }
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 HEADER = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
@@ -111,39 +108,49 @@ def read_list(path):
     
     return file_list
 
+def process_ticker(ticker):
+    if ticker.endswith('11'):
+        return
+    if ticker[-2:].isdigit() and int(ticker[-2:]) >= 32:
+        return
+    
+    html = fetch_html(ticker)
+    if html:
+        df = parse_indicators(html, ticker)
+        df = clean_data(df)
+        if df is not None:
+            df['type'] = 'stock'
+        return df
+    
+    return
+
 def main():
     data_frames = []
     list_stocks = read_list(LIST_PATH)
 
-    for ticker in tqdm(list_stocks, desc="Processing tickers"):
-
-        if ticker.endswith('11'):
-            # df_fii = get_yfinance_data(ticker)
-            # print(df_fii)
-            # return
-            continue
-        elif ticker[-2:].isdigit() and int(ticker[-2:]) >= 32:
-            continue
-        else:
-            html = fetch_html(ticker)
-            if html:
-                df = parse_indicators(html, ticker)
-                df = clean_data(df)
-                df['type'] = 'stock'
-                if df is not None:
-                    data_frames.append(df)
-                
-    final_df = pd.concat(data_frames, ignore_index = True)
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(process_ticker, ticker): ticker for ticker in list_stocks}
+        
+        for future in tqdm(as_completed(futures), total=len(futures), desc="Processing tickers"):
+            df = future.result()
+            if df is not None:
+                data_frames.append(df)
     
+    if not data_frames:
+        print("No data frames were created.")
+        return pd.DataFrame()
+    
+    final_df = pd.concat(data_frames, ignore_index=True)
+
     final_df = final_df.pivot_table(
         index=['sector', 'ticker', 'type'],
-        columns='name', 
-        values='value', 
+        columns='name',
+        values='value',
         aggfunc='first'
     ).reset_index()
-    
+
     final_df['reference_date'] = datetime.date.today()
-    
+
     return final_df
 
 if __name__ == "__main__":
