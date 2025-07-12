@@ -128,7 +128,7 @@ def main():
     data_frames = []
     list_stocks = read_list(LIST_PATH)
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=2) as executor:
         futures = {executor.submit(process_ticker, ticker): ticker for ticker in list_stocks}
         
         for future in tqdm(as_completed(futures), total=len(futures), desc="Processing tickers"):

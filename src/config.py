@@ -52,8 +52,8 @@ class Config():
   }
   
   WEIGHTS_ANALYSIS = {
-    'score_general': 0.6,
-    'score_sector': 0.4
+    'score_general': 0.65,
+    'score_sector': 0.35
   }
   
   BASE_COLUMNS = ['ticker', 'sector', 'type', 'reference_date']
