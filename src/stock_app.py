@@ -53,7 +53,10 @@ def analysis_rank(type, calcs):
     df_graph = df_all[['ticker', 'rank', 'date']].copy()
 
     filter_ = df_graph.groupby('ticker')['rank'].mean().reset_index()
+    rank_path = 'fii_dividends.csv'
+    filter_.to_csv(rank_path, index=False, sep=',', encoding='utf-8', decimal=',')
     filter_['rank'] = filter_['rank'].rank(ascending=True).astype(int)
+    
     top_tickers = np.array(filter_[filter_['rank'] <= 10]['ticker'])
 
     df_filtered = df_graph[df_graph['ticker'].isin(top_tickers)]

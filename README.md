@@ -94,3 +94,9 @@
 - Incluir dados macroeconômicos e correlação com eventos de mercado.  
 - Colocar o código em um orquestrador para alimentação contínua dos dados.  
 - Melhorar os testes unitários.
+
+
+
+- Verificar historico do valor da ação e agregar no score
+- Verificar ações que entraram na bolsa (IPO)
+- CDI - Títulos Públicos

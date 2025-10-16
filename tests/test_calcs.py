@@ -44,4 +44,3 @@ def test_calc_general(sample_data):
     
     assert max_result == max_expected
     
-    
