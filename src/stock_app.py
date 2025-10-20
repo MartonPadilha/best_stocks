@@ -3,6 +3,7 @@ from config import Config
 import pandas as pd
 import numpy as np
 import plotly.express as px
+from datetime import timedelta
 
 TABLE_NAME = 'stock_data'
 
@@ -25,22 +26,38 @@ def analysis_tickers(type, calcs):
 
     return df_final, outliers
 
-def analysis_rank(type, calcs):
+def analysis_rank(type, calcs, period='all'):
     df_base = Database(TABLE_NAME, Config.DATABASE).view()
-    
     df_base = df_base[df_base['type'] == type]
     
+    # Ordena e pega datas únicas
     unique_dates = df_base['reference_date'].sort_values().unique()
+    if len(unique_dates) == 0:
+        st.warning("Nenhum dado encontrado para o tipo selecionado.")
+        return pd.DataFrame()
     
+    # Determina o período máximo com base na última data
+    last_date = pd.to_datetime(unique_dates[-1])
+    if period != 'all':
+        days_map = {
+            '7d': 7,
+            '30d': 30,
+            '90d': 90,
+            '1y': 365
+        }
+        days = days_map.get(period, 0)
+        start_date = last_date - timedelta(days=days)
+        df_base = df_base[pd.to_datetime(df_base['reference_date']) >= start_date]
+
+    unique_dates = df_base['reference_date'].sort_values().unique()
     result = []
+
     for date in unique_dates:
         df_day = df_base[df_base['reference_date'] == date]
         
         df, outliers = calcs.outliers_zscore(df_day, 4)
-
         df_sectorized = calcs.sector_analyses(df)
         df_general = calcs.general_analyses(df)
-
         df_final = calcs.final_sum_score(df_sectorized, df_general)
         df_final = df_final.sort_values(by=['score_final'], ascending=False)
         
@@ -49,29 +66,26 @@ def analysis_rank(type, calcs):
         result.append(df_final)
         
     df_all = pd.concat(result, ignore_index=True)
-
     df_graph = df_all[['ticker', 'rank', 'date']].copy()
 
+    # Ranking médio
     filter_ = df_graph.groupby('ticker')['rank'].mean().reset_index()
-    rank_path = 'fii_dividends.csv'
-    filter_.to_csv(rank_path, index=False, sep=',', encoding='utf-8', decimal=',')
     filter_['rank'] = filter_['rank'].rank(ascending=True).astype(int)
     
     top_tickers = np.array(filter_[filter_['rank'] <= 10]['ticker'])
-
     df_filtered = df_graph[df_graph['ticker'].isin(top_tickers)]
 
     return df_filtered
 
 def plot_rank(df, axle_x, axle_y):
     fig = px.line(
-            df,
-            x=axle_x,
-            y=axle_y,
-            color='ticker',
-            title='Evolução do Rank por Ticker',
-            markers=True
-        )
+        df,
+        x=axle_x,
+        y=axle_y,
+        color='ticker',
+        title='Evolução do Rank por Ticker',
+        markers=True
+    )
     return fig.update_yaxes(autorange='reversed')
 
 def show_dividends():

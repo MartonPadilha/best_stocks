@@ -10,9 +10,6 @@ import warnings
 import os
 import sys
 
-import sys
-import os
-
 src_path = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if src_path not in sys.path:
     sys.path.append(src_path)
@@ -50,14 +47,17 @@ for i in choose_weight:
     value = st.sidebar.number_input(i, 0.0, 1.0, choose_weight[i]['weight'], 0.01)
     choose_weight[i]['weight'] = value
 
-apply_button = st.sidebar.button('Aplicar Filtros')
+# Botão "Aplicar filtros"
+if st.sidebar.button('Aplicar Filtros'):
+    st.session_state['filters_applied'] = True
+
 ######################################################
 
-      
+
 ################ BODY ################################
-if apply_button:
+if st.session_state.get('filters_applied', False):
+
     if _type == 'stock':
-        print(calcs)
         st.subheader('Ações rankeadas:')
         st.dataframe(analysis_tickers(_type, calcs)[0])
         
@@ -70,13 +70,33 @@ if apply_button:
         st.write('Outliers:')
         st.dataframe(analysis_tickers(_type, calcs)[1])
         
-        ### Line Graph - Rank top tickers
-        df_graph = analysis_rank(_type, calcs)
+        # === Seletor de período (novo) ===
+        st.markdown("---")
+        st.subheader("Gráfico de Rank das Top Ações")
 
+        period_choice = st.radio(
+            "Selecione o período de análise:",
+            ('7 dias', '30 dias', '90 dias', '1 ano', 'Todas as datas'),
+            horizontal=True,
+            key='period_choice'
+        )
+
+        period_map = {
+            '7 dias': '7d',
+            '30 dias': '30d',
+            '90 dias': '90d',
+            '1 ano': '1y',
+            'Todas as datas': 'all'
+        }
+        selected_period = period_map[period_choice]
+
+        df_graph = analysis_rank(_type, calcs, period=selected_period)
         st.plotly_chart(plot_rank(df_graph, 'date', 'rank'), use_container_width=True)
 
     elif _type == 'fii':
         st.write("FIIs analysis is not implemented yet.")
         st.dataframe(show_fiis())
-    
+
+else:
+    st.info("Ajuste os pesos e clique em **Aplicar Filtros** para iniciar a análise.")
 ######################################################
