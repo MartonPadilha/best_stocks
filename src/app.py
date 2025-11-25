@@ -25,18 +25,29 @@ choose_buttom = st.radio('Selecione o tipo de investimento:', ['Ações', 'FIIs'
 if choose_buttom == "Ações":
     _type = 'stock'
     choose_weight = Config.WEIGHTS_STOCKS
-    calcs = Calcs(choose_weight)
+    # calcs = Calcs(choose_weight)
+    
+
     st.header(f'Análise de {choose_buttom}')
     st.write(f'Você pode visualizar e analisar {choose_buttom} com base nos indicadores e pesos escolhidos.')
 
 elif choose_buttom == "FIIs":
     _type = 'fii'
     choose_weight = Config.WEIGHTS_FIIS
-    calcs = Calcs(choose_weight)
+    # calcs = Calcs(choose_weight)
     st.header(f'Análise de {choose_buttom}')
     st.write(f'Você pode visualizar e analisar {choose_buttom} com base nos indicadores e pesos escolhidos.')
 
 #####################################################
+
+st.sidebar.markdown("---")
+st.sidebar.header("Temporal & Robustez")
+win_30 = st.sidebar.number_input("Janela curta (dias)", 7, 60, 30, step=1)
+win_90 = st.sidebar.number_input("Janela média (dias)", 30, 180, 90, step=1)
+win_180 = st.sidebar.number_input("Janela longa (dias)", 90, 365, 180, step=1)
+winsor_lo = st.sidebar.slider("Winsorize lower quantile (%)", 0.0, 5.0, 1.0) / 100.0
+winsor_hi = st.sidebar.slider("Winsorize upper quantile (%)", 95.0, 100.0, 99.0) / 100.0
+calcs = Calcs(choose_weight, temporal_windows=[win_30, win_90, win_180], winsor_limits=(winsor_lo, winsor_hi))
 
 ################ SIDEBAR #############################
 st.sidebar.header('Pesos dos indicadores')
