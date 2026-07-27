@@ -100,3 +100,9 @@
 - Verificar historico do valor da ação e agregar no score
 - Verificar ações que entraram na bolsa (IPO)
 - CDI - Títulos Públicos
+
+# Como executar? 
+cd C:\Users\marton\Desktop\projects\best_stocks
+poetry env use C:\Users\marton\AppData\Local\Programs\Python\Python312\python.exe
+poetry install
+poetry run streamlit run src/app.py
