@@ -1,10 +1,14 @@
 import re
 import pandas as pd
 import ast
+import requests
+import urllib3
 import yfinance as yf
 import numpy as np
 import datetime as dt
 from tqdm import tqdm
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 LIST_PATH = 'storage/tickers_list.txt'
 GARBAGE_LIST = 'storage/fii_tickers_error.txt'
@@ -21,7 +25,9 @@ def read_list(path):
 
 def get_yfinance_data(ticker):
     ticker += '.SA'
-    data = yf.Ticker(ticker)
+    session = requests.Session()
+    session.verify = False
+    data = yf.Ticker(ticker, session=session)
     dividends = data.dividends
 
     df = pd.DataFrame(dividends.reset_index())
