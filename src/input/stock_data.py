@@ -1,4 +1,5 @@
 import requests
+import urllib3
 from bs4 import BeautifulSoup
 import re
 import pandas as pd
@@ -8,6 +9,8 @@ import numpy as np
 import datetime
 from tqdm import tqdm
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 HEADER = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
@@ -25,7 +28,7 @@ def fetch_html(ticker):
     
     url = f"{URL_BASE}/acoes/{ticker}"
     try:
-        response = requests.get(url, headers=HEADER, timeout=10)
+        response = requests.get(url, headers=HEADER, timeout=10, verify=False)
         response.raise_for_status()
         return BeautifulSoup(response.content, "html.parser")
     except requests.RequestException as e:
@@ -82,7 +85,9 @@ def get_yfinance_data(ticker):
     dados = []
     error = []
     try:
-        info = yf.Ticker(ticker + '.SA').info
+        session = requests.Session()
+        session.verify = False
+        info = yf.Ticker(ticker + '.SA', session=session).info
         dados.append({
             'ticker': ticker,
             'sector': info.get('sector', ''),
