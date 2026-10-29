@@ -13,6 +13,17 @@ class Calcs():
         self.temporal_windows = temporal_windows or [30, 90, 180]
         self.winsor_limits = winsor_limits
 
+    def cap_indicators(self, df, caps):
+        df = df.copy()
+        for col, cap_value in caps.items():
+            if col not in df.columns:
+                continue
+            mask = df[col] > cap_value
+            if mask.any():
+                excess = df.loc[mask, col] - cap_value
+                df.loc[mask, col] = cap_value + np.log1p(excess)
+        return df
+
     def add_rolling_features(self, df_history, price_col='price', date_col='date', ticker_col='ticker'):
         """
         df_history: dataframe long com colunas [ticker, date, price, p_l, p_vp, dy, m_liquida, roe, ...]
@@ -96,14 +107,15 @@ class Calcs():
                 s = s.where(s > 0, np.nan)
                 s = (s - s.min()) / (s.max() - s.min())
                 s = 1 - s
-                s = s.fillna(0)
             elif norm_type == 'inverter_one':
                 s = (abs(s - 1) - abs(s - 1).min()) / (abs(s - 1).max() - abs(s - 1).min())
                 s = 1 - s
             else:
                 s = (s - s.min()) / (s.max() - s.min())
 
-            df[c] = s.fillna(0)
+            # Missing explícito: NaN vira 0.5 (neutro), não 0 (pior).
+            # Dado faltante não deve penalizar — apenas não contribui.
+            df[c] = s.fillna(0.5)
         return df
         
     def outliers_iqr(self, df, factor=1.5):
@@ -227,32 +239,102 @@ class Calcs():
         return df
 
     def sum_score(self, df_row):
-        """
-        Calculates the weighted total score based on criteria.
-        
-        Args:
-            df (pd.DataFrame): DataFrame with data.
-
-        Returns:
-            float: Score calculated.
-        """
-        
-        # score = 0
-        
-        # for crit, weight in self.goal.items():
-        #     score += df[crit] * weight['weight']
-
-        # return score
         score = 0.0
         adj = df_row.get('recurrence_adjustment', 1.0)
+        roe_roic_pen = df_row.get('roe_roic_penalty', 1.0)
         for crit, meta in self.goal.items():
             w = meta['weight']
             val = df_row.get(crit, 0.0)
-            # se critério é de profitability (exemplo), aplique ajuste
             if crit in ['m_líquida', 'roe', 'roic', 'lpa']:
-                w = w * adj
+                # profitability é penalizado por recurrence adjustment E por spread ROE/ROIC
+                w = w * adj * roe_roic_pen
             score += val * w
         return score
+
+    def reconcile_roe_roic(self, df):
+        """Penaliza ROE muito acima de ROIC — spread indica alavancagem/encolhimento de equity, não qualidade.
+
+        Adiciona coluna 'roe_roic_penalty' (0 a 1) e ajuste de score de profitability.
+        """
+        df = df.copy()
+        if 'roe' not in df.columns or 'roic' not in df.columns:
+            df['roe_roic_penalty'] = 1.0
+            return df
+        roe = pd.to_numeric(df['roe'], errors='coerce')
+        roic = pd.to_numeric(df['roic'], errors='coerce')
+        spread = roe - roic
+        # spread saudável: < 10pp (roe levemente acima de roic é normal por alavancagem moderada)
+        # spread suspeito: > 20pp — equity encolhendo ou ganho não recorrente inflando ROE
+        penalty = np.where(
+            spread.isna() | roic.isna(),
+            1.0,
+            np.clip(1.0 - (spread - 10) / 30, 0.3, 1.0)
+        )
+        df['roe_roic_penalty'] = penalty
+        return df
+
+    def compute_trend(self, df_hist, indicators, date_col='reference_date', ticker_col='ticker'):
+        """Calcula tendência (melhorando/piorando) de indicadores ao longo do histórico.
+
+        Retorna DataFrame com ticker + trend_<indicator> em [-1, 1].
+        - +1: indicador melhorando consistentemente
+        - -1: indicador piorando
+        - 0: estável ou sem histórico suficiente
+        """
+        df = df_hist.copy()
+        if date_col not in df.columns or ticker_col not in df.columns:
+            return pd.DataFrame(columns=[ticker_col] + [f"trend_{i}" for i in indicators])
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+        df = df.sort_values([ticker_col, date_col])
+        out = []
+        for ticker, g in df.groupby(ticker_col):
+            row = {ticker_col: ticker}
+            for ind in indicators:
+                col = ind
+                if col not in g.columns:
+                    row[f"trend_{ind}"] = 0.0
+                    continue
+                series = pd.to_numeric(g[col], errors='coerce').dropna()
+                if len(series) < 3:
+                    row[f"trend_{ind}"] = 0.0
+                    continue
+                first_half = series.iloc[:len(series)//2].mean()
+                second_half = series.iloc[len(series)//2:].mean()
+                denom = abs(first_half) if abs(first_half) > 1e-9 else 1.0
+                pct_change = (second_half - first_half) / denom
+                row[f"trend_{ind}"] = float(np.clip(pct_change, -1, 1))
+            out.append(row)
+        return pd.DataFrame(out)
+
+    def detect_dy_value_trap(self, df_hist, date_col='reference_date', ticker_col='ticker'):
+        """Marca DY alto causado por queda de preço (value trap) em vez de crescimento de dividendo.
+
+        Retorna DataFrame com ticker + 'dy_value_trap_flag' (bool) + 'dy_trap_penalty' (0 a 1).
+        """
+        df = df_hist.copy()
+        if date_col not in df.columns or 'dy' not in df.columns or 'p_vp' not in df.columns:
+            return pd.DataFrame(columns=[ticker_col, 'dy_value_trap_flag', 'dy_trap_penalty'])
+        df[date_col] = pd.to_datetime(df[date_col], errors='coerce')
+        df = df.sort_values([ticker_col, date_col])
+        out = []
+        for ticker, g in df.groupby(ticker_col):
+            dy = pd.to_numeric(g['dy'], errors='coerce').dropna()
+            pvp = pd.to_numeric(g['p_vp'], errors='coerce').dropna()
+            if dy.empty or pvp.empty or len(dy) < 2 or len(pvp) < 2:
+                out.append({ticker_col: ticker, 'dy_value_trap_flag': False, 'dy_trap_penalty': 1.0})
+                continue
+            dy_recent = dy.iloc[-1]
+            dy_past = dy.iloc[0]
+            pvp_recent = pvp.iloc[-1]
+            pvp_past = pvp.iloc[0]
+            dy_grew = dy_recent > dy_past * 1.3 if dy_past > 0 else False
+            price_fell = pvp_recent < pvp_past * 0.85 if pvp_past > 0 else False
+            high_dy = dy_recent > 12
+            trap = dy_grew and price_fell and high_dy
+            penalty = 0.3 if trap else 1.0
+            out.append({ticker_col: ticker, 'dy_value_trap_flag': bool(trap), 'dy_trap_penalty': float(penalty)})
+        return pd.DataFrame(out)
+
 
     # def final_sum_score(self, df_sector, df_general):
     #     """
@@ -279,28 +361,33 @@ class Calcs():
     
     def sector_analyses(self, df, cols_to_normalize):
         """
-        Calculates score based on indicators weight splited by sector.
+        Score por setor, normalizando apenas contra peers saudáveis (sem prejuízo).
 
-        Args:
-            df (pd.DataFrame): DataFrame with data.
-
-        Returns:
-            pd.DataFrame: DataFrame with sectorial score.
+        Empresas com prejuízo (ROE < 0 ou P/L < 0) são excluídas da referência
+        de normalização setorial para evitar premiar "melhor num cemitério".
+        Ainda recebem score, mas normalizadas contra o subconjunto saudável.
         """
-
-        # df_sectorized = pd.DataFrame(columns=df.columns)
-        # for sector in df['sector'].unique():
-        #     df_sector = df[df['sector'] == sector]
-        #     df_normalized = self.normalize(df_sector, [i for i in self.goal])
-        #     df_normalized['score_sector'] = df_normalized.apply(self.sum_score, axis=1)
-        #     df_sectorized = pd.concat([df_sectorized, df_normalized])
-        
-        # return df_sectorized
         out = []
         for sector, g in df.groupby('sector'):
             g_proc = g.copy()
-            g_proc = self.winsorize_df(g_proc, cols_to_normalize)
-            g_proc = self.robust_normalize(g_proc, cols_to_normalize)
+            # Referência saudável: ROE > 0 e P/L > 0 (quando disponíveis)
+            roe = pd.to_numeric(g_proc.get('roe'), errors='coerce')
+            pl = pd.to_numeric(g_proc.get('p_l'), errors='coerce')
+            healthy_mask = (roe > 0) & (pl > 0)
+            if healthy_mask.sum() >= 3:
+                # Normaliza apenas contra peers saudáveis, depois aplica a todos do setor
+                healthy_ref = g_proc[healthy_mask].copy()
+                healthy_ref = self.winsorize_df(healthy_ref, cols_to_normalize)
+                healthy_ref = self.robust_normalize(healthy_ref, cols_to_normalize)
+                # Para não-saudáveis, atribui valor neutro (0.5) nos cols normalizados
+                unhealthy = g_proc[~healthy_mask].copy()
+                for c in cols_to_normalize:
+                    if c in unhealthy.columns:
+                        unhealthy[c] = 0.5
+                g_proc = pd.concat([healthy_ref, unhealthy], ignore_index=True)
+            else:
+                g_proc = self.winsorize_df(g_proc, cols_to_normalize)
+                g_proc = self.robust_normalize(g_proc, cols_to_normalize)
             g_proc['score_sector'] = g_proc.apply(self.sum_score, axis=1)
             out.append(g_proc)
         return pd.concat(out, ignore_index=True)
