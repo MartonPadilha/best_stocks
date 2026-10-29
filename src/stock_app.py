@@ -4,8 +4,39 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 from datetime import timedelta
+import yfinance as yf
 
 TABLE_NAME = 'stock_data'
+
+
+def fetch_momentum_bulk(tickers, days=90):
+    yf_tickers = [t + '.SA' for t in tickers]
+    ticker_map = {t + '.SA': t for t in tickers}
+
+    try:
+        data = yf.download(yf_tickers, period=f'{days + 10}d', progress=False, threads=True)
+        if data.empty:
+            return pd.DataFrame({'ticker': tickers, 'momentum': np.nan})
+
+        close = data['Close'] if 'Close' in data.columns or isinstance(data.columns, pd.MultiIndex) else data
+        if isinstance(close, pd.Series):
+            close = close.to_frame(yf_tickers[0])
+
+        results = []
+        for yf_t in yf_tickers:
+            orig = ticker_map[yf_t]
+            if yf_t not in close.columns:
+                results.append((orig, np.nan))
+                continue
+            series = close[yf_t].dropna()
+            if len(series) < 2:
+                results.append((orig, np.nan))
+                continue
+            results.append((orig, (series.iloc[-1] - series.iloc[0]) / series.iloc[0]))
+
+        return pd.DataFrame(results, columns=['ticker', 'momentum'])
+    except Exception:
+        return pd.DataFrame({'ticker': tickers, 'momentum': np.nan})
 
 # def analysis_tickers(type, calcs):
 #     df_base = Database(TABLE_NAME, Config.DATABASE).view()
@@ -125,7 +156,7 @@ def _ensure_types(df):
     return df
 
 
-def analysis_tickers(type, calcs):
+def analysis_tickers(type, calcs, analysis_config=None):
     # carrega todo o histórico (view retorna a tabela completa)
     df_hist = Database(TABLE_NAME, Config.DATABASE).view()
     if df_hist is None or df_hist.empty:
@@ -172,12 +203,22 @@ def analysis_tickers(type, calcs):
     df_scoring['sector'] = df_latest.get('sector', np.nan)
     for goal_metric in calcs.goal.keys():
         mapped = metric_map.get(goal_metric, goal_metric)
-        df_scoring[goal_metric] = df_latest.get(mapped, 0.0).astype(float) if mapped in df_latest.columns else 0.0
+        if mapped in df_latest.columns:
+            vals = pd.to_numeric(df_latest[mapped], errors='coerce')
+            df_scoring[goal_metric] = vals
+        else:
+            df_scoring[goal_metric] = np.nan
 
     df_scoring['recurrence_adjustment'] = df_latest.get('recurrence_adjustment', 1.0)
 
-    # Outliers (antes do score) — ajuste o fator se necessário
-    df_no_out, df_outliers = calcs.outliers_zscore(df_scoring.copy(), factor=4.5)
+    caps = analysis_config.indicator_caps if analysis_config is not None else Config.INDICATOR_CAPS
+    df_scoring = calcs.cap_indicators(df_scoring, caps)
+
+    # Reconciliação ROE vs ROIC: penaliza spread alto (alavancagem/encolhimento de equity)
+    df_scoring = calcs.reconcile_roe_roic(df_scoring)
+
+    outlier_factor = analysis_config.outlier_factor if analysis_config is not None else 4.5
+    df_no_out, df_outliers = calcs.outliers_zscore(df_scoring.copy(), factor=outlier_factor)
 
     # colunas que vamos normalizar (baseadas nos seus pesos)
     cols_to_normalize = list(calcs.goal.keys())
@@ -185,14 +226,58 @@ def analysis_tickers(type, calcs):
     # análises e ranking (passando os cols para as funções de Calcs)
     df_sectorized = calcs.sector_analyses(df_no_out, cols_to_normalize)
     df_general = calcs.general_analyses(df_no_out, cols_to_normalize)
-    df_final = calcs.final_sum_score(df_sectorized, df_general)
+    if analysis_config is not None:
+        df_final = calcs.final_sum_score(
+            df_sectorized, df_general,
+            weight_sector=analysis_config.score_sector_weight,
+            weight_general=analysis_config.score_general_weight,
+        )
+    else:
+        df_final = calcs.final_sum_score(df_sectorized, df_general)
+
+    # Ajustes pós-score: tendência de indicadores e DY value trap
+    trend_inds = [i for i in ['roe', 'roic', 'm_líquida', 'dív_líquida_ebitda'] if i in calcs.goal]
+    df_trend = calcs.compute_trend(df_hist, trend_inds)
+    if not df_trend.empty:
+        trend_cols = [c for c in df_trend.columns if c.startswith('trend_')]
+        df_trend['trend_avg'] = df_trend[trend_cols].mean(axis=1) if trend_cols else 0.0
+        df_final = pd.merge(df_final, df_trend[['ticker', 'trend_avg']], on='ticker', how='left')
+        df_final['trend_avg'] = df_final['trend_avg'].fillna(0.0)
+        df_final['score_final'] = df_final['score_final'] * (0.85 + 0.15 * df_final['trend_avg'])
+
+    df_trap = calcs.detect_dy_value_trap(df_hist)
+    if not df_trap.empty:
+        df_final = pd.merge(df_final, df_trap[['ticker', 'dy_value_trap_flag', 'dy_trap_penalty']], on='ticker', how='left')
+        df_final['dy_trap_penalty'] = df_final['dy_trap_penalty'].fillna(1.0)
+        df_final['score_final'] = df_final['score_final'] * df_final['dy_trap_penalty']
+
+    momentum_weight = analysis_config.momentum_weight if analysis_config is not None else Config.MOMENTUM_WEIGHT
+    if momentum_weight > 0:
+        tickers = df_final['ticker'].unique().tolist()
+        df_mom = fetch_momentum_bulk(tickers, days=90)
+        df_final = pd.merge(df_final, df_mom, on='ticker', how='left')
+
+        valid_mom = df_final['momentum'].dropna()
+        if len(valid_mom) > 1:
+            mom_min, mom_max = valid_mom.min(), valid_mom.max()
+            if mom_max != mom_min:
+                df_final['momentum_norm'] = (df_final['momentum'] - mom_min) / (mom_max - mom_min)
+            else:
+                df_final['momentum_norm'] = 0.5
+            df_final['momentum_norm'] = df_final['momentum_norm'].fillna(0.5)
+
+            df_final['score_final'] = (
+                df_final['score_final'] * (1 - momentum_weight)
+                + df_final['momentum_norm'] * momentum_weight
+            )
+
     df_final = df_final.sort_values(by=['score_final'], ascending=False)
 
     df_display = pd.merge(df_final, df_base, on='ticker', how='left')
     return df_display.reset_index(drop=True), df_outliers.reset_index(drop=True)
 
 
-def analysis_rank(type, calcs, period='all'):
+def analysis_rank(type, calcs, period='all', analysis_config=None):
     df_hist = Database(TABLE_NAME, Config.DATABASE).view()
     if df_hist is None or df_hist.empty:
         return pd.DataFrame()
@@ -210,6 +295,10 @@ def analysis_rank(type, calcs, period='all'):
         days = days_map.get(period, 0)
         start_date = last_date - timedelta(days=days)
         df_hist = df_hist[df_hist['reference_date'] >= start_date]
+
+    caps = analysis_config.indicator_caps if analysis_config is not None else Config.INDICATOR_CAPS
+    w_sector = analysis_config.score_sector_weight if analysis_config is not None else 0.45
+    w_general = analysis_config.score_general_weight if analysis_config is not None else 0.55
 
     unique_dates = np.sort(df_hist['reference_date'].dropna().unique())
     result = []
@@ -229,12 +318,13 @@ def analysis_rank(type, calcs, period='all'):
             else:
                 df_scoring[goal_metric] = 0.0
         df_scoring['recurrence_adjustment'] = 1.0
+        df_scoring = calcs.cap_indicators(df_scoring, caps)
 
         df_no_out, _ = calcs.outliers_zscore(df_scoring.copy(), factor=4)
         cols_to_normalize = list(calcs.goal.keys())
         df_sectorized = calcs.sector_analyses(df_no_out, cols_to_normalize)
         df_general = calcs.general_analyses(df_no_out, cols_to_normalize)
-        df_final = calcs.final_sum_score(df_sectorized, df_general)
+        df_final = calcs.final_sum_score(df_sectorized, df_general, weight_sector=w_sector, weight_general=w_general)
         df_final = df_final.sort_values(by=['score_final'], ascending=False)
 
         df_final['rank'] = df_final['score_final'].rank(ascending=False, method='min').astype(int)
